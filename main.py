@@ -95,6 +95,7 @@ def openMenuWin(username, key): #opens main menu window function
 
     binLable = tk.Label(root, text="🗑️") #sets bin label
     binLable.place(x=860, y=449) #places button
+    binLable.bind("<Button-1>", lambda e, lbl=binLable, name="bin": recentlyDeletedPopUp()) #binds bin function to when clicked
 
     logoutFileButton = tk.Button(root, text="Log Out", command=lambda: logout()) #sets log out button
     logoutFileButton.place(x=897, y=445) #places button
@@ -112,6 +113,11 @@ def openMenuWin(username, key): #opens main menu window function
     notificationText.place(x=400, y=449) #places lable
 
     fileFont = tkFont.Font(family="Helvetica", size=15, weight="bold") #file list font
+
+    def truncate(name): #reduce file name function
+        if len(name) <= 23:
+            return name
+        return(name[:23] + "...txt") #truncates file name if it is larger than 23 chars
 
     def updateUndoRedoState(): #function to check if undo/redo is available
         try:
@@ -178,7 +184,7 @@ def openMenuWin(username, key): #opens main menu window function
         deleteFileButton.config(state="normal") #enables delete button
         renameFileButton.config(state="normal") #enables rename button
 
-        fileTitle.config(text=currentFileName) #sets filename title
+        fileTitle.config(text=truncate(currentFileName)) #sets filename title
         fileEditor.place(x=0, y=0) #places file editor
 
         try:
@@ -270,7 +276,7 @@ def openMenuWin(username, key): #opens main menu window function
                 notification(str(e)) #displays error if fails
                 return #skips
 
-            notification(f"{currentFileName} saved.") #shows saved notification
+            notification(f"{truncate(currentFileName)} saved.") #shows saved notification
 
     def checkFileName(filename): #function to check if a file name exists
         files = [p.stem for p in loadFiles()] #loads user's files
@@ -281,9 +287,6 @@ def openMenuWin(username, key): #opens main menu window function
         elif filename in files: #if inputted file name is found in users existing files
             error = "File Already Exists" #sets error
             return True, error #returns True and error
-        elif len(filename) > 20:  # if inputted file name is larger than 20 chars
-            error = "File Name Too Large"  # sets error
-            return True, error  # returns True and error
         else:
             return False #else returns false (no file name match is found and it is acceptable)
 
@@ -304,7 +307,7 @@ def openMenuWin(username, key): #opens main menu window function
         labelFont = tkFont.Font(family="Helvetica", size=14) #lable font
         titleFont = tkFont.Font(family="Helvetica", size=16, weight="bold") #title font
 
-        popUpTitleLabel = tk.Label(PopUp, text=f"Confirm deleting {currentFileName}?", font=titleFont, fg="white") #delete message
+        popUpTitleLabel = tk.Label(PopUp, text=f"Confirm deleting {truncate(currentFileName)}?", font=titleFont, fg="white") #delete message
         popUpTitleLabel.place(relx=0.5, rely=0.20, anchor="center") #places lable
 
         popUpLable = tk.Label(PopUp, text="Once a file is deleted, it is moved to the bin.", font=labelFont, fg="grey") #delete sub message
@@ -329,11 +332,128 @@ def openMenuWin(username, key): #opens main menu window function
                 notification(str(e)) #displays error if fail
                 return #skips
 
-            notification(f"{currentFileName} deleted.") #displays file deleted
+            notification(f"{truncate(currentFileName)} deleted.") #displays file deleted
             currentFileName = None #resets current file variable
 
             PopUp.destroy() #closes delete popup
             displayFiles() #updates file list
+
+        PopUp.wait_window() #stop menu window while file pop up open
+
+    def recentlyDeletedPopUp(): #bin pop up window
+        nonlocal currentFileName
+
+        PopUp = tk.Toplevel(root) #creates window
+        PopUp.title("Recently Deleted") #window title
+        PopUp.geometry("500x400") #window size
+        center_window(PopUp) #centers pop up window
+        PopUp.resizable(False, False) #disables ability to resize window
+        PopUp.attributes("-fullscreen", False) #disables ability to full screen window
+
+        PopUp.grab_set() #stops user from using menu window while open
+
+        deleteButton = tk.Button(PopUp, text="Delete", command=lambda: delete(), fg="red") #sets delete button to delete function
+        deleteButton.place(relx=0.70, rely=0.92, anchor="center") #places button
+
+        recoverButton = tk.Button(PopUp, text="Recover", command=lambda: recover()) #sets recover button to recover function
+        recoverButton.place(relx=0.29, rely=0.92, anchor="center") #places button
+
+        clearButton = tk.Button(PopUp, text="Clear", command=lambda: clear(), fg="red") #sets clear button to clear function
+        clearButton.place(relx=0.88, rely=0.92, anchor="center") #places button
+
+        cancelButton = tk.Button(PopUp, text="Close", command=lambda: PopUp.destroy()) #sets cancel button to close window
+        cancelButton.place(relx=0.11, rely=0.92, anchor="center") #places button
+
+        fileList = tk.Listbox(PopUp, width=54, height=20, font=("Courier New", 14)) #sets file list listbox
+        fileList.place(x=250, y=180, anchor="center") #places list box
+
+        binTitle = tk.Label(PopUp, text="", fg="grey") #sets bin label
+
+        def format(fName, timestamp): #format file function
+            if len(fName) > 23:
+                display = fName[:23] + "...txt" #truncates file if longer than 23 chars and adds extension
+            else:
+                display = fName.ljust(29) #adds spacing offset if file is shorter
+
+            return f"{display} | {timestamp}" #returns formatted filename with spacing/truncation
+
+        def loadBinFiles(): #function to load file found in bin
+            binFiles = [f for f in Path(f"./users/{username}/bin").glob("*.txt")] #loops though user's bin file for .txt files
+            fileList.delete(0, tk.END) #clears listbox
+
+            loadBinFiles.binFiles = binFiles #makes the bin list accessible to other bin functions
+
+            if len(binFiles) == 0: #check if bin is empty
+                binTitle.place(x=250, y=180, anchor="center") #if empty, places lable
+                binTitle.config(text="Bin empty.") #sets lable to bin empty
+                return #skips
+
+            for f in binFiles: #if bin not empty
+                raw = f.name[:-4] #raw holds file name (including time stable) without extension
+                fName, timestamp = raw.split("|", 1) #splits and stores the original file name, and it's time stamp
+                fName = fName.rstrip() #removes any spacing from filename
+                timestamp = timestamp.strip() #removes any spacing from time stamp
+
+                display = format(fName, timestamp) #formats orignal filename and it's time stamp
+                fileList.insert(tk.END, display) #adds new formatted name to bin list
+
+        def delete(): #true delete function
+            if not fileList.curselection(): #if no file selected
+                return #skip
+            selectedFile = loadBinFiles.binFiles[fileList.curselection()[0]].name #fetches selected file
+
+            try:
+                file_utilities.deleteFile(f"./users/{username}/bin/{selectedFile}") #attempts to delete file
+            except DeleteFileError as e:
+                notification(str(e)) #displays error if fail
+
+            loadBinFiles() #updates bin list
+
+        def recover(): #recover file function
+            if not fileList.curselection(): #if no file selected
+                return #skip
+
+            selectedFile = loadBinFiles.binFiles[fileList.curselection()[0]].name #fetches selected file
+            orignalName = selectedFile.split("|")[0].rstrip() #removes time stamp from original file name
+
+            raw = orignalName[:-4] #removes extension from file
+            attempt = orignalName #sets attemp as original name (includes extension)
+            num = 1 #sets counter to one
+
+            while checkFileName(attempt[:-4]): #loops through counter, checking if a file matches with file trying to be recovered
+                attempt = f"{raw} {num}.txt" #if match found, adds number to filename
+                num += 1 #incrempt counter
+
+            try:
+                file_utilities.moveFile(f"./users/{username}/bin/{selectedFile}", f"./users/{username}/{attempt}") #attempts to move file back to main directory
+            except FileWriteError as e:
+                notification(str(e)) #displays error if fail
+                return #skip
+
+            delete() #calls delete file to remove file from bin
+            notification(f"{truncate(orignalName)} recovered.") #notify user the file has been recovered
+            loadBinFiles() #updates bin files list
+            displayFiles() #updates main files list
+
+        def clear(): #clear bin function
+            binFiles = loadBinFiles.binFiles  #loads all files in bin
+
+            if len(binFiles) == 0: #if bin empty
+                return #skip
+
+            for f in binFiles: #loops though files in the bin
+                try:
+                    file_utilities.deleteFile(f"./users/{username}/bin/{f.name}") #attempts to delete file
+                except FileWriteError as e:
+                    notification(str(e)) #displays error if fail
+                    return #skip
+
+            notification("Bin cleared.") #notifys user bin has been cleared
+            loadBinFiles() #updates bin files list
+
+        PopUp.bind('<Return>', lambda e: delete()) #binds enter/return to delete function
+
+        loadBinFiles()  # loads bin list
 
         PopUp.wait_window() #stop menu window while file pop up open
 
@@ -353,7 +473,7 @@ def openMenuWin(username, key): #opens main menu window function
 
         labelFont = tkFont.Font(family="Helvetica", size=14) #lable font
 
-        popUpLabel = tk.Label(PopUp, text=f"Rename {currentFileName[:-4]}", font=labelFont, fg="white") #rename message
+        popUpLabel = tk.Label(PopUp, text=f"Rename {truncate(currentFileName)[:-4]}", font=labelFont, fg="white") #rename message
         popUpLabel.place(relx=0.5, rely=0.20, anchor="center") #place lable
 
         fileNameInput = tk.Entry(PopUp,width=25, bg="#2b2b2b", fg="white") #name input bpx
@@ -387,7 +507,7 @@ def openMenuWin(username, key): #opens main menu window function
                     notification(str(e)) #displays error if fail
                     return
 
-                notification(f"{currentFileName} renamed to {fileRename}.") #notify user of successfully rename
+                notification(f"{truncate(currentFileName)} renamed to {truncate(fileRename)}.") #notify user of successfully rename
                 openFile(fileRename) #opens file (with new name)
                 displayFiles() #updates file list
                 PopUp.destroy() #closes pop up
@@ -448,7 +568,7 @@ def openMenuWin(username, key): #opens main menu window function
                     fileEditor.place_forget() #remove text editor
 
                     openFile(f"{inputName}.txt") #open new file
-                    notification(f"{inputName+".txt"} successfully created.") #notify user new file has been created
+                    notification(f"{truncate(inputName+".txt")} successfully created.") #notify user new file has been created
 
                     displayFiles() #update file list
                     PopUp.destroy() #close pop up
