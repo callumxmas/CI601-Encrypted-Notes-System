@@ -142,4 +142,3 @@ def createUser(loginWin, OpenMenu): #open create new user window function
         loginWindow(OpenMenu) #opens login window
 
     createUserWin.mainloop() #set create new user function as main loop
-
