@@ -23,9 +23,9 @@ def loginWindow(openMenu): #open login window function
     loginWin = tk.Tk() #creates window
     loginWin.title("Login") #window title
     loginWin.geometry("500x400") #window size
-    center_window(loginWin)  # centers log in window
-    loginWin.resizable(False, False)  # disables ability to resize window
-    loginWin.attributes("-fullscreen", False)  # disables ability to full screen window
+    center_window(loginWin) #centers log in window
+    loginWin.resizable(False, False) #disables ability to resize window
+    loginWin.attributes("-fullscreen", False) #disables ability to full screen window
 
     titleFont = tkFont.Font(family="Helvetica", size=90, weight="bold") #title font
     subTitleFont = tkFont.Font(family="Helvetica", size=20, weight="bold") #sub title font
@@ -84,6 +84,7 @@ def loginWindow(openMenu): #open login window function
         loginWin.destroy() #close log in window
         openMenu("dev", key) #open menu window passing in dev credentials
 
+    loginWin.bind_all('<Return>', lambda event: attemptLogin()) #bind enter/return to login function
     loginWin.bind_all('<Control_L>', lambda event: devSkip()) #bind left control key to dev login skip
 
     loginWin.mainloop() #set login window as main loop
@@ -115,10 +116,13 @@ def createUser(loginWin, openMenu): #open create new user window function
     createUserWin = tk.Tk() #creates window
     createUserWin.title("N🔒TES") #window title
     createUserWin.geometry("500x400") #window size
-    center_window(createUserWin)  # centers create window
+    center_window(createUserWin) #centers create window
 
-    createUserWin.resizable(False, False)  # disables ability to resize window
-    createUserWin.attributes("-fullscreen", False)  # disables ability to full screen window
+    createUserWin.resizable(False, False) #disables ability to resize window
+    createUserWin.attributes("-fullscreen", False) #disables ability to full screen window
+
+    hidePass = True #set password input to be hidden
+    hideRepass = True #set password re-enter input to be hidden
 
     subTitleFont = tkFont.Font(family="Helvetica", size=20, weight="bold") #sub title font
     labelFont = tkFont.Font(family="Helvetica", size=12) #label font
@@ -169,9 +173,35 @@ def createUser(loginWin, openMenu): #open create new user window function
     errorLabel = tk.Label(createUserWin, text="", font=textFont, fg="red") #sets error label
     errorLabel.place(relx=0.5, rely=0.86, anchor="center") #places label
 
+    showPassButton = tk.Label(createUserWin, text="🙈", font=labelFont) #sets show password label
+    showPassButton.place(relx=0.77, rely=0.5, anchor="center") #places lable
+    showPassButton.bind("<Button-1>",lambda e, lbl=showPassButton, name="showPass": showPass()) #binds show password function to label press
+    showPassButton.bind("<ButtonRelease-1>", lambda e, lbl=showPassButton, name="hidePass": hidePass()) #binds hide password function to label release
+
+    showRepassButton = tk.Label(createUserWin, text="🙈", font=labelFont) #sets show password re-entry label
+    showRepassButton.place(relx=0.77, rely=0.8, anchor="center") #places lable
+    showRepassButton.bind("<Button-1>",lambda e, lbl=showRepassButton, name="showRepass": showRepass()) #binds show password re-entry function to label press
+    showRepassButton.bind("<ButtonRelease-1>", lambda e, lbl=showRepassButton, name="hideRepass": hideRepass()) #binds hide password re-entry function to label release
+
     def back(openMenu): #back function
         createUserWin.destroy() #closes create user window
         loginWindow(openMenu) #opens login window
+
+    def showPass(): #show password function
+        showPassButton.config(text="🙉") #set password monkey to see
+        passwordEntry.config(show="") #set password to plaintext
+
+    def hidePass(): #hide password function
+        showPassButton.config(text="🙈") #set password monkey to not see
+        passwordEntry.config(show="*") #set password to *
+
+    def showRepass(): #show password re-entry function
+        showRepassButton.config(text="🙉") #set password re-entry monkey to see
+        passwordReentry.config(show="") #set password re-entry to plaintext
+
+    def hideRepass(): #hide password re-entry function
+        showRepassButton.config(text="🙈") #set password re-entry monkey to not see
+        passwordReentry.config(show="*") #set password re-entry to *
 
     def attemptCreateUser(): #attempt create new user function
         userText.config(fg="grey") #reset label colours and error label
@@ -229,6 +259,7 @@ def createUser(loginWin, openMenu): #open create new user window function
 
         Path(f"./users/{username}").mkdir(parents=True, exist_ok=True) #make user directory
         Path(f"./users/{username}/credentials").mkdir(parents=True, exist_ok=True) #make user's credential directory
+        Path(f"./users/{username}/bin").mkdir(parents=True, exist_ok=True) #make user's bin
         safeWrite(f"./users/{username}/credentials/credentials.txt", hashedP) #store user's hashed password
 
         salt = urandom(16) #generate user's unique salt
@@ -239,4 +270,5 @@ def createUser(loginWin, openMenu): #open create new user window function
         createUserWin.destroy() #close new user window
         openMenu(username, key) #open menu window passing in username and derived key
 
+    createUserWin.bind_all('<Return>', lambda event: attemptCreateUser()) #bind enter/return to create user function
     createUserWin.mainloop() #set create new user function as main loop

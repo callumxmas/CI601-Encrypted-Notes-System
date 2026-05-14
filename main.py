@@ -18,62 +18,142 @@ def center_window(window): #places window in the middle of the users screen
 
 def openMenuWin(username, key): #opens main menu window function
     root = tk.Tk() #creates window
-    root.title("N🔒TES") #window title
+    root.title(f"N🔒TES    |    {username}") #window title
     root.geometry("1000x500") #window size
-    center_window(root)  # centers menu window
+    center_window(root) #centers menu window
 
     root.resizable(False, False) #disables ability to resize window
     root.attributes("-fullscreen", False) #disables ability to full screen window
 
-    currentFileName = None #filename currently selected
+    currentFileName = None #no selected file initially
+    unsaved = False #unsaved statues is false
 
-    fileExplore = tk.Canvas(root,width=220,height=406,bg="#2b2b2b") #set file explore canvas
+    fileExplore = tk.Canvas(root, width=240, height=406,bg="#2b2b2b") #set file explore canvas
     fileExplore.place(x=20, y=20) #place file explorer
 
-    scrollbar = tk.Scrollbar(root, orient="vertical", command=fileExplore.yview) #sets scrollbar
-    scrollbar.place(x=24 + 220, y=23, height=406) #places scrollbar
-    fileExplore.configure(yscrollcommand=scrollbar.set) #links file explore with scroll bar
-
     fileList = tk.Frame(fileExplore, bg="#2b2b2b", padx=5, pady=5) #set file list frame
-    fileExplore.create_window((0, 0), window=fileList, anchor="nw") #sets file explorer window
-    def update_scroll(event): #update scroll function
-        fileExplore.configure(scrollregion=fileExplore.bbox('all')) #scroll affects all files displayed
-    fileList.bind("<Configure>", update_scroll) #bind to file list
+    fileExploreWin = fileExplore.create_window((0, 0), window=fileList, anchor="nw") #sets file explorer window
 
-    topBlock = tk.Canvas(root, width=220, height=10, bg="#1E1E1E", borderwidth=0) #sets file explorer top border
+    def updateScroll(event=None): #update scroll function
+        fileExplore.configure(scrollregion=fileExplore.bbox("all")) #scroll affects all files displayed
+    fileList.bind("<Configure>", updateScroll) #bind to file list
+
+    def syncWidth(event): #width control function
+        fileExplore.itemconfig(fileExploreWin, width=event.width) #configure file explorer width
+    fileExplore.bind("<Configure>", syncWidth) #bind to file explore canvas
+
+    fileExplore.configure(yscrollincrement=15) #scroll increment
+
+    def mouseWheel(event): #scroll direction detection function
+        if event.delta > 0: #if positive scroll
+            fileExplore.yview_scroll(-1, "units") #scroll up
+        else: #if negative scroll
+            fileExplore.yview_scroll(1, "units") #scroll down
+
+    fileExplore.bind("<Enter>", lambda e: fileExplore.bind_all("<MouseWheel>", mouseWheel)) #binds scrolling to when mouse is on file explorer (mac/windows)
+    fileExplore.bind("<Leave>", lambda e: fileExplore.unbind_all("<MouseWheel>")) #unbinds scrolling to when mouse is off file explorer (mac/windows)
+    fileExplore.bind_all("<Button-4>", lambda e: fileExplore.yview_scroll(-1, "units")) #linux scroll up
+    fileExplore.bind_all("<Button-5>", lambda e: fileExplore.yview_scroll(1, "units")) #linux scroll down
+
+    topBlock = tk.Canvas(root, width=240, height=10, bg="#1E1E1E", borderwidth=0) #sets file explorer top border
     topBlock.place(x=20, y=7) #places border
 
-    bottomBlock = tk.Canvas(root, width=220, height=10, bg="#1E1E1E") #sets file explorer bottom border
+    bottomBlock = tk.Canvas(root, width=240, height=10, bg="#1E1E1E") #sets file explorer bottom border
     bottomBlock.place(x=20, y=429) #places border
 
-    editorFrame = tk.Frame(root, width=700,height=406, bg="#2b2b2b") #sets file editor frame
+    rsideBlock = tk.Canvas(root, width=10, height=406, bg="#1E1E1E") #sets file explorer right border
+    rsideBlock.place(x=260, y=20) #places border
+
+    lsideBlock = tk.Canvas(root, width=10, height=406, bg="#1E1E1E") #sets file explorer left border
+    lsideBlock.place(x=10, y=20) #places border
+
+    editorFrame = tk.Frame(root, width=700, height=406, bg="#2b2b2b") #sets file editor frame
     editorFrame.place(x=280, y=23) #places frame
 
-    fileEditor = tk.Text(editorFrame, font=("Helvetica", 16), bg= "#2b2b2b", width=77,height=21) #sets file text editor
+    fileEditor = tk.Text(editorFrame, font=("Helvetica", 16), bg="#2b2b2b", width=77, height=21, undo=True, maxundo=-2) #sets file text editor
     notifyLable = tk.Label(editorFrame, text="", fg="grey", bg="#2b2b2b") #sets notification lable
 
     createFileButton = tk.Button(root, text="New File", command=lambda: newFilePopUp()) #sets new file button
     createFileButton.place(x=20, y=445) #places button
 
-    deleteFileButton = tk.Button(root, text="Delete", command=lambda: deletePopUp()) #sets delete file button
+    deleteFileButton = tk.Button(root, text="Delete", command=lambda: deletePopUp(), state="disabled") #sets delete file button
     deleteFileButton.place(x=106, y=445) #places button
 
-    renameFileButton = tk.Button(root, text="Rename", command=lambda: renamePopUp()) #sets rename file button
+    renameFileButton = tk.Button(root, text="Rename", command=lambda: renamePopUp(), state="disabled") #sets rename file button
     renameFileButton.place(x=180, y=445) #places button
 
-    saveFileButton = tk.Button(root, text="Save", command=lambda: saveFile()) #sets save file button
-    saveFileButton.place(x=280, y=445) #places button
+    undoLable = tk.Label(root, text="↩", fg="grey") #sets undo lable
+    undoLable.place(x=280, y=449) #places lable
+    undoLable.bind("<Button-1>", lambda e, lbl=undoLable, name="undo": safeUndo()) #binds undo function to when clicked
 
-    logoutFileButton = tk.Button(root, text="Log Out", command=lambda: logout()) #sets logout button
+    redoLable = tk.Label(root, text="↪", fg="grey") #sets redo button
+    redoLable.place(x=305, y=449) #places lable
+    redoLable.bind("<Button-1>", lambda e, lbl=redoLable, name="undo": safeRedo()) #binds redo function to when clicked
+
+    saveFileButton = tk.Button(root, text="Save", command=lambda: saveFile(), state="disabled") #sets ave file button
+    saveFileButton.place(x=330, y=445) #places button
+
+    binLable = tk.Label(root, text="🗑️") #sets bin label
+    binLable.place(x=860, y=449) #places button
+
+    logoutFileButton = tk.Button(root, text="Log Out", command=lambda: logout()) #sets log out button
     logoutFileButton.place(x=897, y=445) #places button
 
     filesLable = tk.Label(root, text="Files:", fg="grey") #sets files lable
     filesLable.place(x=20, y=0) #places lable
 
-    fileTitle = tk.Label(root, text="", fg="grey") #sets opened files title
+    fileTitle = tk.Label(root, text="", fg="grey") #sets opened file title
     fileTitle.place(x=280, y=0) #places lable
 
+    unsavedMarker = tk.Label(root, text="", fg="grey") #sets unsaved marker lable
+    unsavedMarker.place(x=915, y=0) #places lable
+
+    notificationText = tk.Label(root, text="", fg="grey") #sets file editor notification text
+    notificationText.place(x=400, y=449) #places lable
+
     fileFont = tkFont.Font(family="Helvetica", size=15, weight="bold") #file list font
+
+    def updateUndoRedoState(): #function to check if undo/redo is available
+        try:
+            fileEditor.edit_undo() #attemps an undo
+            fileEditor.edit_redo() #remove undo
+            undoLable.config(fg="white") #changes lable to white (available)
+        except:
+            undoLable.config(fg="grey") #else changes it to grey (not available)
+
+        try:
+            fileEditor.edit_redo() #attemps an redo
+            fileEditor.edit_undo() #removes redo
+            redoLable.config(fg="white") #changes lable to white (available)
+        except:
+            redoLable.config(fg="grey") #else changes it to grey (not available)
+
+    def safeUndo(): #undo function
+        nonlocal unsaved
+        try:
+            fileEditor.edit_undo() #undo command
+            unsaved = True #updates unsaved state
+            markUnsaved() #marks a change has been made
+        except:
+            pass
+        updateUndoRedoState() #updates undo/redo availability check
+
+    def safeRedo(): #redo function
+        nonlocal unsaved
+        try:
+            fileEditor.edit_redo() #redo command
+            unsaved = True #updates unsaved state
+            markUnsaved() #marks a change has been made
+        except:
+            pass
+        updateUndoRedoState() #updates undo/redo availability check
+
+    def markUnsaved(event=None): #display unsaved function
+        nonlocal currentFileName,unsaved
+        if currentFileName == None: #checks if a file is selected
+            return #skips if not
+        unsaved = True #updates unsaved state
+        unsavedMarker.config(text=f"unsaved.") #displays unsaved state using lable
 
     def logout(): #logout function
         root.destroy() #closes menu window
@@ -83,37 +163,58 @@ def openMenuWin(username, key): #opens main menu window function
         files = [f for f in Path(f"./users/{username}").glob("*.txt")] #loops though users directory looking for .txt files
         return files #returns file list
 
+    def notification(message): #user notification function
+        notificationText.config(text=message) #displays inputted text
+        notificationText.after(2000, lambda: notificationText.config(text="")) #clears after 2000ms (2 seconds)
+
     def openFile(filename): #open file function
-        nonlocal currentFileName
+        nonlocal currentFileName, unsaved
+        unsaved = False #resets unsaved variable
+        notifyLable.config(text="") #clears center lable
+        notifyLable.place_forget() #removes center lable
         currentFileName = filename #sets selected file as file currently open
 
-        notifyLable.config(text="")  # clears center lable
-        notifyLable.place_forget()  # removes center lable
+        saveFileButton.config(state="normal") #enables save button
+        deleteFileButton.config(state="normal") #enables delete button
+        renameFileButton.config(state="normal") #enables rename button
 
         fileTitle.config(text=currentFileName) #sets filename title
-        fileEditor.place(x=0, y=0) #places filename title
+        fileEditor.place(x=0, y=0) #places file editor
 
         try:
             data = file_utilities.loadFile(username, filename,key) #attempts to load data from file
         except (FileReadError, CryptoError) as e:
-            print(e)
+            notification(str(e)) #displays error if fail
             return #skips
 
         fileEditor.insert(tk.END, data) #places data
 
-    def closeCurrentFile():  # close file function
-        nonlocal currentFileName
-        saveFile()  # saves file being closed
-        fileTitle.config(text="")  # clears filename title
+        if fileEditor.get("end-2c") == "\n": #checks for default new line being added
+            fileEditor.delete("end-2c") #removes if found
 
-        fileEditor.delete("0.0", "end")  # clears editor
-        fileEditor.place_forget()  # closes editor
+        fileEditor.edit_reset() #resets undo/redo history
+        updateUndoRedoState() #updates undo/redo availability
+
+    def closeCurrentFile(): #close file function
+        nonlocal currentFileName, unsaved
+        saveFile() #saves file being closed
+        fileEditor.edit_reset() #resets undo/redo history
+        fileTitle.config(text="") #clears filename title
+
+        undoLable.config(fg="grey") #greys undo button
+        redoLable.config(fg="grey") #greys redo button
+        saveFileButton.config(state="disabled") #disables save button
+        deleteFileButton.config(state="disabled") #disables delete button
+        renameFileButton.config(state="disabled") #disables rename button
+
+        fileEditor.delete("0.0", "end") #clears editor
+        fileEditor.place_forget() #closes editor
+        unsaved = False #resets unsaved variable
 
     def fileClick(lable): #file click function
         nonlocal currentFileName
-        notifyLable.config(text="")  # clears center lable
-        notifyLable.place_forget()  # removes center lable
-
+        notifyLable.config(text="") #clears center lable
+        notifyLable.place_forget() #removes center lable
         filename = lable.cget("text")[2:]+".txt" #sets filename by removing lock symbol & adding file extension
 
         if currentFileName == filename: #checks if file open is the same as file being clicked
@@ -156,32 +257,35 @@ def openMenuWin(username, key): #opens main menu window function
             notifyLable.place(relx=0.5, rely=0.5, anchor="center") #places center lable
             notifyLable.config(text="Select a File!") #displays no file selected
 
-    def saveFile():  # save file function
+    def saveFile(): #save file function
+        nonlocal unsaved
         if currentFileName is not None: #checks a file is currently open
             dataToSave = fileEditor.get("1.0", "end") #reads text editor
+            unsaved = False #resets unsave variable
+            unsavedMarker.config(text=f"") #clears marker
 
             try:
-                file_utilities.writeFile(f"./users/{username}/{currentFileName}", dataToSave,key) #attempts to save to file
+                file_utilities.writeFile(f"./users/{username}/{currentFileName}",dataToSave,key) #attempts to save to file
             except FileWriteError as e:
-                print(e) #displays error if fail
+                notification(str(e)) #displays error if fails
                 return #skips
 
-            print(f"{currentFileName} saved.")
+            notification(f"{currentFileName} saved.") #shows saved notification
 
-    def checkFileName(filename):  #function to check if a file name exists
-        files = [p.stem for p in loadFiles()]  #loads user's files
+    def checkFileName(filename): #function to check if a file name exists
+        files = [p.stem for p in loadFiles()] #loads user's files
 
-        if filename == "":  #if inputted file name is nothing
-            error = "Enter File Name"  #sets error
-            return True, error  #returns True and error
-        elif filename in files:  #if inputted file name is found in users existing files
-            error = "File Already Exists"  #sets error
-            return True, error  #returns True and error
+        if filename == "": #if inputted file name is nothing
+            error = "Enter File Name" #sets error
+            return True, error #returns True and error
+        elif filename in files: #if inputted file name is found in users existing files
+            error = "File Already Exists" #sets error
+            return True, error #returns True and error
         elif len(filename) > 20:  # if inputted file name is larger than 20 chars
             error = "File Name Too Large"  # sets error
             return True, error  # returns True and error
         else:
-            return False  #else returns false (no file name match is found and it is acceptable)
+            return False #else returns false (no file name match is found and it is acceptable)
 
     def deletePopUp(): #delete file pop up window
         nonlocal currentFileName
@@ -203,7 +307,7 @@ def openMenuWin(username, key): #opens main menu window function
         popUpTitleLabel = tk.Label(PopUp, text=f"Confirm deleting {currentFileName}?", font=titleFont, fg="white") #delete message
         popUpTitleLabel.place(relx=0.5, rely=0.20, anchor="center") #places lable
 
-        popUpLable = tk.Label(PopUp, text="Once a file is deleted, it is moved to a bin folder.", font=labelFont, fg="grey") #delete sub message
+        popUpLable = tk.Label(PopUp, text="Once a file is deleted, it is moved to the bin.", font=labelFont, fg="grey") #delete sub message
         popUpLable.place(relx=0.5, rely=0.50, anchor="center") #places lable
 
         cancelButton = tk.Button(PopUp, text="Cancel", command=lambda: PopUp.destroy()) #sets cancel button to close window
@@ -211,6 +315,8 @@ def openMenuWin(username, key): #opens main menu window function
 
         deleteButton = tk.Button(PopUp, text="Delete", command=lambda: deleteFile()) #sets delete button to delete function
         deleteButton.place(relx=0.65, rely=0.80, anchor="center") #places button
+
+        PopUp.bind('<Return>', lambda e: deleteFile()) #binds enter/return to delete function
 
         def deleteFile(): #delete function (move to bin function)
             nonlocal currentFileName
@@ -220,16 +326,16 @@ def openMenuWin(username, key): #opens main menu window function
             try:
                 file_utilities.moveFile(f"./users/{username}/{currentFileName}",f"./users/{username}/bin/{rename}") #attemps to rename and move file to bin
             except FileWriteError as e:
-                print(e) #displays error if fail
+                notification(str(e)) #displays error if fail
                 return #skips
 
-            print(f"{currentFileName} deleted.") #displays file deleted
+            notification(f"{currentFileName} deleted.") #displays file deleted
             currentFileName = None #resets current file variable
 
             PopUp.destroy() #closes delete popup
             displayFiles() #updates file list
 
-        PopUp.wait_window()
+        PopUp.wait_window() #stop menu window while file pop up open
 
     def renamePopUp(): #rename file pop up window
         nonlocal currentFileName
@@ -278,10 +384,10 @@ def openMenuWin(username, key): #opens main menu window function
                 try:
                     file_utilities.renameFile(currentFilePath, newFilePath) #attemp to rename file
                 except FileWriteError as e:
-                    print(e) #displays error if fail
+                    notification(str(e)) #displays error if fail
                     return
 
-                print(f"{currentFileName} renamed to {fileRename}.") #notify user of successfully rename
+                notification(f"{currentFileName} renamed to {fileRename}.") #notify user of successfully rename
                 openFile(fileRename) #opens file (with new name)
                 displayFiles() #updates file list
                 PopUp.destroy() #closes pop up
@@ -289,7 +395,9 @@ def openMenuWin(username, key): #opens main menu window function
                 fileNameInput.delete("0", "end") #clears inputted name
                 errorLabel.config(text=check[1]) #displays check error
 
-        PopUp.wait_window()  # stop menu window while file pop up open
+        PopUp.bind('<Return>', lambda event: attemptFileRename()) #binds enter/return to attempt rename
+
+        PopUp.wait_window() #stop menu window while file pop up open
 
     def newFilePopUp(): #new file pop up window
         PopUp = tk.Toplevel(root) #creates window
@@ -330,7 +438,7 @@ def openMenuWin(username, key): #opens main menu window function
                     try:
                         file_utilities.createFile(username,inputName,key) #attempt to create file
                     except FileWriteError as e:
-                        print(e) #displays error if fail
+                        notification(str(e)) #displays error if fail
                         return #skip
 
                     currentFileName = None #reset current file
@@ -340,7 +448,7 @@ def openMenuWin(username, key): #opens main menu window function
                     fileEditor.place_forget() #remove text editor
 
                     openFile(f"{inputName}.txt") #open new file
-                    print(f"{inputName+".txt"} successfully created.") #notify user new file has been created
+                    notification(f"{inputName+".txt"} successfully created.") #notify user new file has been created
 
                     displayFiles() #update file list
                     PopUp.destroy() #close pop up
@@ -351,9 +459,19 @@ def openMenuWin(username, key): #opens main menu window function
                 fileNameInput.delete("0", "end") #clear input box
                 errorLabel.config(text=check[1]) #displays check error
 
-        PopUp.wait_window()  # stop menu window while file pop up open
+        PopUp.bind('<Return>', lambda e: attemptNewFile()) #bin enter/return to new file function
+        PopUp.wait_window() #stop menu window while file pop up open
 
-    displayFiles()  # load file list
+    displayFiles() #load file list
+
+    root.bind('<Command-s>', lambda e: saveFile()) #bind command s to save file function
+    root.bind('<Command-n>', lambda e: newFilePopUp()) #bind command n to new file function
+    root.bind('<Command-r>', lambda e: renamePopUp()) #bind command r to rename file function
+
+    fileEditor.bind("<Key>", markUnsaved) #update unsaved when a key is pressed in file editor
+    fileEditor.bind("<KeyRelease>", lambda e: updateUndoRedoState()) #update undo/redo availability when a key is released in file editor
+    fileEditor.bind('<Command-z>', lambda e: safeUndo()) #bind command z to undo function in file editor
+    fileEditor.bind('<Command-y>', lambda e: safeRedo()) #bind command y to redo function in file editor
 
     root.mainloop() #set main menu (root) as main loop
 
