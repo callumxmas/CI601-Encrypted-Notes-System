@@ -12,7 +12,7 @@ class AuthError(Exception):#login authentication fail
 class CryptoError(Exception):#encryption or decryption fail
     pass
 
-def safe_read(path): #file reading function producing specific errors
+def safeRead(path): #file reading function producing specific errors
     try:
         return Path(path).read_text() #read attempt
     except FileNotFoundError:
@@ -22,7 +22,7 @@ def safe_read(path): #file reading function producing specific errors
     except Exception as e:
         raise FileReadError(f"Error reading file {path}: {e}")
 
-def safe_write(path, data): #file writing function producing specific errors
+def safeWrite(path, data): #file writing function producing specific errors
     try:
         Path(path).write_text(data) #write attempt
     except PermissionError:
